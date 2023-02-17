@@ -10,25 +10,12 @@ def generate_lines(rules, rem):
                 yield [0] * left_pad + [1] * rules[0] + [0] + soln
 
 def solve_line(rules, length):
-    # try to reduce each line, filling in things that must be true
-    # generate all possible solutions
-    line = [2] * length
-    n = 0
-    for soln in generate_lines(rules, length):
-        for i, val in enumerate(soln):
-            if line[i] == 2 or line[i] == val:
-                line[i] = val
-            else:
-                line[i] = 3 # contested
-        n += 1
-    print(n, "solutions generated")
-    for i, val in enumerate(line):
-        if val == 3:
-            line[i] = 2
-    print(line)
-    return line
+    # get all possible solutions
+    lines = [line for line in generate_lines(rules, length)]
+    print(len(lines), "solutions generated")
+    return lines
 
-def is_valid(line, rules):
+def is_line_valid(line, rules):
     curr_rule = 0
     curr_count = 0
     on_black = False
@@ -51,71 +38,45 @@ def is_valid(line, rules):
             return False
     return True
 
+def is_grid_valid(grid, left, top):
+    for i, row in enumerate(grid):
+        if not is_line_valid(row, left[i]):
+            return False
+    for i, col in enumerate(top):
+        if not is_line_valid([row[i] for row in grid], col):
+            return False
+    return True
+
 def solve(left, top):
     # initialize
     grid = [
         [2 for i in range(len(top))]
         for j in range(len(left))
     ] # grid[row][col]
+    
     # 2 = unknown, 0 = white, 1 = black
 
-    # solve rows
-    for i, row in enumerate(left):
-        grid[i] = solve_line(row, len(top))
-        #print(i, grid[i])
-    
-    # solve columns
-    for i, col in enumerate(top):
-        col = solve_line(col, len(left))
-        for j, val in enumerate(col):
-            if grid[j][i] == 2 or grid[j][i] == val:
-                grid[j][i] = val
-            else:
-                grid[j][i] = 3
-        for j, val in enumerate(grid):
-            if val[i] == 3:
-                val[i] = 2
-        #print(i, col)
-    
-    print_grid(grid)
-    
-    # backtracking
+    solns = [solve_line(left[i], len(top)) for i in range(len(left))]
+
     curr = 0
-    grid_solved = copy.deepcopy(grid)
-    #print(grid_solved)
-    while curr < len(grid) * len(grid[0]):
-        row = curr // len(grid[0])
-        col = curr % len(grid[0])
-        #print(curr, row, col, grid)
-        if grid_solved[row][col] != 2: # skip if solved in preliminary steps 
+    curr_solns = [-1 for i in range(len(left))]
+
+    while curr < len(grid):
+        curr_solns[curr] += 1
+        if curr_solns[curr] >= len(solns[curr]):
+            curr_solns[curr] = -1
+            grid[curr] = [2 for i in range(len(top))]
+            curr -= 1
+            continue
+        grid[curr] = solns[curr][curr_solns[curr]]
+        if is_grid_valid(grid, left, top):
             curr += 1
-        else:
-            if grid[row][col] == 2:
-                grid[row][col] = 0
-            elif grid[row][col] == 0:
-                grid[row][col] = 1
-            elif grid[row][col] == 1: # nothing here works, backtrack
-                grid[row][col] = 2
-                curr -= 1
-                row = curr // len(grid[0])
-                col = curr % len(grid[0])
-                while grid_solved[row][col] != 2:
-                    curr -= 1
-                    row = curr // len(grid[0])
-                    col = curr % len(grid[0])
-                    #print("decrementing to", curr, row, col, grid)
-                continue
-            
-            # check if this is a valid solution
-            if is_valid(grid[row], left[row]) and is_valid([grid[j][col] for j in range(len(grid))], top[col]):
-                curr += 1
-                #print("incrementing to", curr, grid)
         if curr < 0:
             raise Exception("You messed up")
     return grid
 
 def print_grid(grid):
-    print("\n".join("".join("X" if val == 1 else "." if val == 0 else "?" for val in row) for row in grid))
+    print("\n".join("".join("██" if val == 1 else ".." if val == 0 else "?" for val in row) for row in grid))
 
 if __name__ == "__main__":
     '''
@@ -140,5 +101,6 @@ if __name__ == "__main__":
             [[9],[1,1],[1,3,1],[1,1,1,1,1],[1,3,1,1,2],[1,1,1,2],[1,1,5],[1,1,5],[1,1,1,1,1,2],[1,1,1,1,1,2],[1,1,1,1,1],[1,1,1,1],[1,1],[9]]
         )
     )
+    
     #print(list(generate_lines([3], 4)))
     #print(is_valid([0,0,0,1,1], [2]))
